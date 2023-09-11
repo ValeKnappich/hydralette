@@ -4,9 +4,11 @@
 
 **Complex configuration made simple**
 
-![Python](https://img.shields.io/pypi/pyversions/hydralette
-)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
+[![python](https://img.shields.io/badge/-Python_3.8_%7C_3.9_%7C_3.10-blue?logo=python&logoColor=white)](https://github.com/pre-commit/pre-commit)
+[![black](https://img.shields.io/badge/Code%20Style-Black-black.svg?labelColor=gray)](https://black.readthedocs.io/en/stable/)
+[![isort](https://img.shields.io/badge/%20imports-isort-%231674b1?style=flat&labelColor=ef8336)](https://pycqa.github.io/isort/)
+[![license](https://img.shields.io/badge/License-MIT-green.svg?labelColor=gray)](https://github.com/ashleve/lightning-hydra-template#license)
 
 </div>
 
@@ -227,4 +229,21 @@ class Config(ConfigBase):
         metadata=dict(help="Number of Layers"),
         validate=lambda value: value > 0
     )
+```
+
+### From Signature
+
+> :information_source: Complete example in [examples/06_from_signature](examples/06_from_signature)
+
+> :warning: Static analysis and auto-complete does not work with dynamically generated config classes.
+
+If you already have an interface defined in the signature of a class or function, you can directly create your config from that without the need for duplicate code.
+
+```python
+class Config(ConfigBase):
+    myclass = field(
+        from_signature=MyClass,  # <-- generate config class from constructor signature and use as field
+        metadata=dict(help="This is helpful text"),
+    )
+    my_func = field(from_signature=my_func)  # <-- generate config class from function signature and use as field
 ```
