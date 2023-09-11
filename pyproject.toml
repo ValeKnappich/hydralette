@@ -1,0 +1,24 @@
+[tool.poetry]
+name = "hydralette"
+version = "0.1.2"
+description = ""
+authors = ["ValeKnappich"]
+readme = "README.md"
+packages = [{include = "hydralette"}]
+keywords = ["config", "cfg", "hydra"]
+license = "MIT"
+homepage = "https://github.com/ValeKnappich/hydralette"
+repository = "https://github.com/ValeKnappich/hydralette"
+include = ["LICENSE"]
+
+[tool.poetry.dependencies]
+python = "^3.10"
+pyyaml = "^6.0.1"
+
+[tool.poetry.group.dev.dependencies]
+pre-commit = "^3.3.3"
+debugpy = "^1.6.7.post1"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

@@ -1,0 +1,2 @@
+class HydraletteConfigurationError(Exception):
+    pass
