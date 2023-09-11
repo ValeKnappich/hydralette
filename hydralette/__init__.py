@@ -2,6 +2,7 @@ from .config import (  # noqa
     MISSING,
     ConfigBase,
     ConfigMeta,
+    config_from_signature,
     convert_type,
     is_hydralette_config,
 )
