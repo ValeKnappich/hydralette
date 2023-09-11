@@ -20,11 +20,26 @@ pip install hydralette
 poetry add hydralette
 ```
 
+## Changelog
+
+- v0.1.3 at commit [`90655ca`](https://github.com/ValeKnappich/hydralette/tree/90655caee3a95f652008a10ca0d5964c01733d39)
+    - Add automatic generation of configs from signatures via `from_signature` and `config_from_signature`
+- v0.1.2 at commit [`5848f43`](https://github.com/ValeKnappich/hydralette/tree/5848f436cb20ac3389018fe6d399502e45b266e5)
+    - Add support for `config groups`, `references`, `validation` and `type conversion`
+    - Add CLI help pages
+
 ## Features
 
-### TL;DR
+- Build configs like dataclasses | [Brief Example](#minimal-example)
+- Automatically generate configs from class/function signatures | [Brief Example](#from-signature) | [Complete Example](examples/06_from_signature.py)
+- Effortless CLI from Config classes | [Brief Example](#cli)
+- Config groups to swap whole components | [Brief Example](#config-groups) | [Complete Example](examples/02_groups.py)
+- Referencing other config values to reduce redundancy | [Brief Example](#references) | [Complete Example](examples/04_references.py)
+- Type Conversion from CLI | [Brief Example](#type-conversion) | [Complete Example](examples/05_conversion_and_validation.py)
+- Value Validation | [Brief Example](#validation) | [Complete Example](examples/05_conversion_and_validation.py)
 
-Hydralette builds on `dataclasses` and extends their functionality. The additions include `CLI`, `config groups`, `references`, `validation` and `type conversion`. It borrows many features and concepts from [hydra](https://github.com/facebookresearch/hydra) but is much more lightweight with just a couple hundred lines of code and `PyYAML` as its only dependency.
+
+## Examples
 
 ### Minimal Example
 
@@ -73,7 +88,26 @@ class Config(ConfigBase):
     )
 ```
 
-### CLI interface
+
+### From Signature
+
+> :information_source: Complete example in [examples/06_from_signature](examples/06_from_signature)
+
+> :warning: Static analysis and auto-complete does not work with dynamically generated config classes.
+
+If you already have an interface defined in the signature of a class or function, you can directly create your config from that without the need for duplicate code.
+
+```python
+class Config(ConfigBase):
+    myclass = field(
+        from_signature=MyClass,  # <-- generate config class from constructor signature and use as field
+        metadata=dict(help="This is helpful text"),
+    )
+    my_func = field(from_signature=my_func)  # <-- generate config class from function signature and use as field
+```
+
+
+### CLI
 
 All config fields can be overriden via the CLI. To make a field mandatory set its default to `hydralette.MISSING`.
 
@@ -229,21 +263,4 @@ class Config(ConfigBase):
         metadata=dict(help="Number of Layers"),
         validate=lambda value: value > 0
     )
-```
-
-### From Signature
-
-> :information_source: Complete example in [examples/06_from_signature](examples/06_from_signature)
-
-> :warning: Static analysis and auto-complete does not work with dynamically generated config classes.
-
-If you already have an interface defined in the signature of a class or function, you can directly create your config from that without the need for duplicate code.
-
-```python
-class Config(ConfigBase):
-    myclass = field(
-        from_signature=MyClass,  # <-- generate config class from constructor signature and use as field
-        metadata=dict(help="This is helpful text"),
-    )
-    my_func = field(from_signature=my_func)  # <-- generate config class from function signature and use as field
 ```
