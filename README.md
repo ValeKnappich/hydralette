@@ -23,7 +23,7 @@ poetry add hydralette
 
 ## Changelog
 
-- v0.1.4 at commit [`todo`](todo)
+- v0.1.4 at commit [`02ba65a`](https://github.com/ValeKnappich/hydralette/tree/02ba65a5f296dc52ab0269318d6a6d6ca8a7dd89)
     - Add documentation at [https://valeknappich.github.io/hydralette](https://valeknappich.github.io/hydralette)
 - v0.1.3 at commit [`90655ca`](https://github.com/ValeKnappich/hydralette/tree/90655caee3a95f652008a10ca0d5964c01733d39)
     - Add automatic generation of configs from signatures via `from_signature` and `config_from_signature`
