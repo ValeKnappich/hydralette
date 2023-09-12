@@ -1,0 +1,35 @@
+.doc {
+    font-size: 0.7rem;
+}
+
+h3.doc-heading {
+    font-size: 1rem;
+}
+
+h4.doc-heading {
+    font-size: 0.85rem;
+}
+
+h4.doc-heading > code:first-child::before {
+    content: "def ";
+}
+
+.doc-function > .doc-heading > code:first-child::before {
+    content: "def ";
+}
+
+.doc-class > .doc-heading > code:first-child::before {
+    content: "class ";
+}
+
+article > *:is(div.doc-function, div.doc-class, div.doc-attribute) > div.doc-contents {
+    padding-left: 35px;
+}
+
+article > *:is(div.doc-function, div.doc-class, div.doc-attribute) > div.doc-contents > .doc-children > .doc-object > .doc-contents {
+    padding-left: 35px;
+}
+
+.doc-contents {
+    border-left: 2pt solid rgba(0, 0, 0, 0.425);
+}

@@ -22,6 +22,26 @@ def field(
     metadata=None,
     kw_only=MISSING,
 ) -> Any:
+    """Function to create `HydraletteField`s. Like `dataclasses.field` with additional features.
+
+    Args:
+        reference (Optional[Callable], optional): Reference lambda that gets the root config and returns a value for this field. Defaults to None.
+        convert (Optional[Callable], optional): Conversion lambda that gets the value passed via CLI and returns a value for this field. Defaults to None.
+        validate (Optional[Callable], optional): Validation lambda that gets the value of this field and returns true if the value is valid. Defaults to None.
+        groups (Dict[str, type], optional): Group definition, allows switching the config class of a sub-config field via cli. Defaults to {}.
+        from_signature (Optional[Callable], optional): Use the signature of an arbitrary callable as the config class for this field. Defaults to None.
+        default (_type_, optional): passed to `dataclasses.Field`. Defaults to MISSING.
+        default_factory (_type_, optional): passed to `dataclasses.Field`. Defaults to MISSING.
+        init (bool, optional): passed to `dataclasses.Field`. Defaults to True.
+        repr (bool, optional): passed to `dataclasses.Field`. Defaults to True.
+        hash (_type_, optional): passed to `dataclasses.Field`. Defaults to None.
+        compare (bool, optional): passed to `dataclasses.Field`. Defaults to True.
+        metadata (_type_, optional): passed to `dataclasses.Field`. Defaults to None.
+        kw_only (_type_, optional): passed to `dataclasses.Field`. Defaults to MISSING.
+
+    Returns:
+        field (HydraletteField): Instantiated field
+    """
     if from_signature is not None:
         if default_factory is not MISSING:
             log.warn("'from_signature' and 'default_factory' are not compatible.")
@@ -67,6 +87,7 @@ def field(
 
 class HydraletteField(Field):
     """Field subclass that adds
+
     - referencing other values
     - type conversion functions
     - validation functions
@@ -82,6 +103,15 @@ class HydraletteField(Field):
         groups: Dict[str, type] = {},
         **kwargs,
     ):
+        """HydraletteField constructor
+
+        Args:
+            reference (Optional[Callable], optional): see `hydralette.field`. Defaults to None.
+            convert (Optional[Callable], optional): see `hydralette.field`. Defaults to None.
+            validate (Optional[Callable], optional): see `hydralette.field`. Defaults to None.
+            groups (Dict[str, type], optional): see `hydralette.field`. Defaults to {}.
+            **kwargs (Any): passed to `dataclasses.Field.__init__`. Defaults to {}
+        """
         super().__init__(**kwargs)
         self.reference = reference
         self.convert = convert
@@ -90,6 +120,14 @@ class HydraletteField(Field):
 
     @classmethod
     def from_dc_field(cls: Type["HydraletteField"], field: Field) -> "HydraletteField":
+        """Convert `dataclass.Field` to `HydraletteField`.
+
+        Args:
+            field (Field): original field
+
+        Returns:
+            HydraletteField: adapted field
+        """
         hydralette_field = cls(
             default=field.default,
             default_factory=field.default_factory,
@@ -129,6 +167,15 @@ class HydraletteField(Field):
 
     @staticmethod
     def from_signature(callable: Callable, field_kwargs: dict = {}) -> Any:
+        """Generate field from signature. Called by `hydralette.field` if `from_signature` is not `None`.
+
+        Args:
+            callable (Callable): _description_
+            field_kwargs (dict, optional): _description_. Defaults to {}.
+
+        Returns:
+            Any: _description_
+        """
         from hydralette.config import (  # noqa: avoid circular import
             config_from_signature,
         )
@@ -141,4 +188,12 @@ class HydraletteField(Field):
 
 
 def fields(class_or_instance) -> Tuple[HydraletteField]:
+    """Wrapper around `dataclasses.fields` to change type hint to `Tuple[HydraletteField]`.
+
+    Args:
+        class_or_instance (_type_): _description_
+
+    Returns:
+        Tuple[HydraletteField]: _description_
+    """
     return dc_fields(class_or_instance)  # type: ignore

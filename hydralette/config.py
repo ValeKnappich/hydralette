@@ -11,7 +11,7 @@ from typing import Any, Callable, Dict, List, Type, TypeVar, Union, get_args, ge
 import yaml
 
 from hydralette.exceptions import HydraletteConfigurationError
-from hydralette.field import HydraletteField, field, fields
+from hydralette.hydralette_field import HydraletteField, field, fields
 
 T = TypeVar("T")
 
@@ -22,11 +22,16 @@ class MISSING_TYPE(object):
 
 
 MISSING = MISSING_TYPE()
+"""Flag to indicate that a field is required."""
 
 log = logging.getLogger(__name__)
 
 
 class ConfigMeta(type):
+    """Meta class for ConfigBase. Automatically infers annotations based on groups and defaults,
+    applies the `dataclass` decorator and converts `Field`s into `HydraletteField`s.
+    """
+
     def __new__(cls, clsname, bases, attrs):
         cls = super().__new__(cls, clsname, bases, attrs)
 
@@ -54,8 +59,40 @@ class ConfigMeta(type):
 
 
 class ConfigBase(metaclass=ConfigMeta):
+    """Base Class for hydralette configs.
+
+    Create a subclass of this and define fields just like with dataclasses.
+
+    Example:
+        ```python
+        from hydralette import ConfigBase, field
+
+        class Config(ConfigBase):
+            x: int = field(
+                default=1,
+                validate=lambda x: x > 0
+            )
+        ```
+
+    Warning:
+        Using the constructor to instantiate a config is not recommended. Use `ConfigClass.create` to use hydralettes full features.
+
+    """
+
     @classmethod
     def create(cls: Type[T], overrides: List[str] = sys.argv[1:]) -> T:
+        """Entry point to instantiate a config.
+
+        Args:
+            overrides (List[str], optional): Overrides in the format `arg.subarg=value`. Defaults to `sys.argv[1:]`.
+
+        Raises:
+            ValueError: If `cls` is not a subclass of ConfigBase
+            SystemExit: After printing the help page
+
+        Returns:
+            T: Instance of the ConfigClass
+        """
         if not issubclass(cls, ConfigBase):
             raise ValueError(f"Type '{cls}' is not a subclass of ConfigBase")
 
@@ -71,6 +108,19 @@ class ConfigBase(metaclass=ConfigMeta):
 
     @classmethod
     def parse_and_instantiate(cls: Type[T], overrides: List[str] = sys.argv[1:]) -> T:
+        """Parse overrides and recursively instantiate config.
+
+        Args:
+            cls (Type[T]): _description_
+            overrides (_type_, optional): _description_. Defaults to sys.argv[1:].
+
+        Raises:
+            ValueError: _description_
+            HydraletteConfigurationError: _description_
+
+        Returns:
+            T: _description_
+        """
         kwargs = {}
         sub_config_overrides = defaultdict(list)
         sub_config_types = defaultdict()
@@ -129,6 +179,7 @@ class ConfigBase(metaclass=ConfigMeta):
 
     @classmethod
     def print_help_page(cls) -> None:
+        """Print the help page. Is called automatically by `.create()` if `-h` or `--help` is in the overrides."""
         printed = []
 
         def format_type_info(t) -> str:
@@ -194,6 +245,10 @@ class ConfigBase(metaclass=ConfigMeta):
 
     @classmethod
     def class_validation(cls):
+        """Validate that the config class is defined correctly.
+
+        - Check that group fields have a default that is also a config class.
+        """
         for f in fields(cls):
             # Check that groups have a default config class
             if f.groups and not (isinstance(f.default, type) and issubclass(f.default, ConfigBase)):
@@ -204,6 +259,11 @@ class ConfigBase(metaclass=ConfigMeta):
                 )
 
     def instance_validation(self):
+        """Validate that config was correctly instantiated. Checks if
+
+        - all required args are provided
+        - all validation lambdas pass
+        """
         for f in fields(self):
             cls = self.__class__
             value = getattr(self, f.name)
@@ -223,16 +283,39 @@ class ConfigBase(metaclass=ConfigMeta):
                 value.instance_validation()
 
     def to_dict(self, only_repr=False) -> Dict[str, Any]:
+        """Convert config to dict. Recursively converts sub-configs to dicts as well.
+
+        Args:
+            only_repr (bool, optional): If true, all objects of non-builtin types are replaced by their repr. Useful for printing but not for serialization. Defaults to False.
+
+        Returns:
+            Dict[str, Any]: Converted config
+        """
         return {field.name: _get_attr(self, field.name, only_repr=only_repr) for field in fields(self)}
 
     def to_yaml(self, sort_keys=False, only_repr=False) -> str:
+        """Convert config to YAML format.
+
+        Args:
+            sort_keys (bool, optional): If true, keys are sorted alphabetically. Passed to `yaml.dump`. Defaults to False.
+            only_repr (bool, optional): See `to_dict`. Defaults to False.
+
+        Returns:
+            str: Config in YAML format
+        """
         d = self.to_dict(only_repr=only_repr)
         return yaml.dump(d, sort_keys=sort_keys)
 
     def print_yaml(self):
+        """Prints the current config in YAML format with `only_repr=True`."""
         print(self.to_yaml(only_repr=True))
 
     def resolve_references(self, root_config=None):
+        """Calls the reference lambdas on all fields.
+
+        Args:
+            root_config (_type_, optional): _description_. Defaults to None.
+        """
         if root_config is None:
             root_config = self
 
@@ -243,11 +326,31 @@ class ConfigBase(metaclass=ConfigMeta):
             elif is_hydralette_config(value):
                 value.resolve_references(root_config=root_config)
 
-    def __getattribute__(self, __name: str) -> Any:  # silence static type checker when fields from signature are accessed
+    def __getattribute__(self, __name: str) -> Any:
+        """Default method. Used to silence the static type checker when `from_signature` is used.
+
+        Args:
+            __name (str): _description_
+
+        Returns:
+            Any: _description_
+        """
         return super().__getattribute__(__name)
 
 
 def is_hydralette_config(obj: Any) -> bool:
+    """Helper function to check if something is a hydralette config. Returns true if
+
+    - `obj` is an instance of `ConfigBase` or
+    - `obj` is a subclass of `ConfigBase` or
+    - `obj` is a `typing.Union` of subclasses of `ConfigBase`
+
+    Args:
+        obj (Any): _description_
+
+    Returns:
+        bool: _description_
+    """
     return (
         isinstance(obj, ConfigBase)
         or (isinstance(obj, type) and issubclass(obj, ConfigBase))
@@ -256,6 +359,15 @@ def is_hydralette_config(obj: Any) -> bool:
 
 
 def convert_type(field: HydraletteField, value: str) -> Any:
+    """Convert a value to a fields type. Tries field.convert if provided and field.type otherwise.
+
+    Args:
+        field (HydraletteField): Field to get the type from
+        value (str): Value from CLI
+
+    Returns:
+        Any: Converted value
+    """
     if field.convert is not None:
         return field.convert(value)
     else:
@@ -266,6 +378,7 @@ def convert_type(field: HydraletteField, value: str) -> Any:
 
 
 def _get_attr(obj, name, only_repr=False):
+    """Helper function to traverse config tree and convert to dict"""
     value = getattr(obj, name)
     if isinstance(value, ConfigBase):
         return value.to_dict()
@@ -276,6 +389,14 @@ def _get_attr(obj, name, only_repr=False):
 
 
 def config_from_signature(callable: Callable) -> Type[ConfigBase]:
+    """Generate a config from an arbitrary signature.
+
+    Args:
+        callable (Callable): Callable to get the signature from
+
+    Returns:
+        Type[ConfigBase]: Config Class
+    """
     annotations = {
         parameter.name: parameter._annotation if parameter._annotation is not inspect._empty else Any
         for parameter in inspect.signature(callable)._parameters.values()  # type: ignore
