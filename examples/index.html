@@ -583,6 +583,10 @@
 <p class="admonition-title">Note</p>
 <p>Complete example in <a href="https://www.github.com/ValeKnappich/hydralette/tree/main/examples/03_existing_dataclass.py">examples/03_existing_dataclass.py</a></p>
 </div>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>Only the top level dataclass is converted to hydralette. Nested dataclasses are not yet supported.</p>
+</div>
 <p>Some libraries define their configuration as dataclasses. To use an existing dataclass as hydralette config, simply derive from it and <code>ConfigBase</code>.</p>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="kn">from</span> <span class="nn">library</span> <span class="kn">import</span> <span class="n">LibraryConfig</span>
 </span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>

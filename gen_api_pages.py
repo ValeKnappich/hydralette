@@ -4,13 +4,12 @@ import mkdocs_gen_files
 
 import hydralette
 
-nav = mkdocs_gen_files.Nav() # type: ignore
+nav = mkdocs_gen_files.Nav()  # type: ignore
+
 
 def get_all_members():
-    return [
-        "hydralette." + member_name
-        for member_name in hydralette.__all__
-    ]
+    return ["hydralette." + member_name for member_name in hydralette.__all__]
+
 
 print(get_all_members())
 
@@ -29,5 +28,4 @@ for member in get_all_members():
         fd.write(f"::: {member}")
 
 with mkdocs_gen_files.open("reference/API.md", "w") as nav_file:
-    nav_file.writelines(nav.build_literate_nav())   
-
+    nav_file.writelines(nav.build_literate_nav())
