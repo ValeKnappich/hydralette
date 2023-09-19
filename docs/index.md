@@ -29,13 +29,13 @@ poetry add hydralette
 
 ## Features
 
-- [x] Build configs like dataclasses | [Brief Example](#minimal-example)
-- [x] Automatically generate configs from class/function signatures | [Brief Example](#from-signature) | [Complete Example](examples/06_from_signature.py)
-- [x] Effortless CLI from Config classes | [Brief Example](#cli)
-- [x] Config groups to swap whole components | [Brief Example](#config-groups) | [Complete Example](examples/02_groups.py)
-- [x] Referencing other config values to reduce redundancy | [Brief Example](#references) | [Complete Example](examples/04_references.py)
-- [x] Type Conversion from CLI | [Brief Example](#type-conversion) | [Complete Example](examples/05_conversion_and_validation.py)
-- [x] Value Validation | [Brief Example](#validation) | [Complete Example](examples/05_conversion_and_validation.py)
-- [ ] Load and save yaml files
+- [x] Build configs like dataclasses | [Example](examples/#minimal-example)
+- [x] Automatically generate configs from class/function signatures | [Example](examples/#from-signature)
+- [x] Effortless CLI from Config classes | [Example](examples/#cli)
+- [x] Config groups to swap whole components | [Example](examples/#config-groups)
+- [x] Referencing other config values to reduce redundancy | [Example](examples/#references)
+- [x] Type Conversion from CLI | [Example](examples/#type-conversion)
+- [x] Value Validation | [Example](examples/#validation)
+- [x] Load and save yaml files
 - [ ] Automatic instantiation
 

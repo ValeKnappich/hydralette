@@ -173,6 +173,9 @@ model:
 !!! note
     Complete example in [examples/03_existing_dataclass.py](https://www.github.com/ValeKnappich/hydralette/tree/main/examples/03_existing_dataclass.py)
 
+!!! warning
+    Only the top level dataclass is converted to hydralette. Nested dataclasses are not yet supported.
+
 Some libraries define their configuration as dataclasses. To use an existing dataclass as hydralette config, simply derive from it and `ConfigBase`.
 
 ```python
