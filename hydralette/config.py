@@ -286,15 +286,7 @@ class ConfigBase(metaclass=ConfigMeta):
                 if f.default is not DC_MISSING:
                     default = f" = {f.default}"
                 elif f.default_factory is not DC_MISSING:
-                    df_name = f.default_factory.__name__  # type: ignore
-                    if df_name == "<lambda>":
-                        df = inspect.getsource(f.default_factory)
-                        df = df[df.find("lambda") :].strip()
-                        if df == "lambda: T()":
-                            df = f"lambda: {f.type.__name__}()"
-                    else:
-                        df = f"{df_name}()"
-                    default = f" = {df}"
+                    default = f" = {f.default_factory()}"
                 arg_name = f"{_trace}{f.name}: {type_fmt}{default} "
                 print(f"\t{arg_name:70s}{arg_descr}")
 
@@ -401,7 +393,8 @@ class ConfigBase(metaclass=ConfigMeta):
 
         config_path.write_text(self.to_yaml())
         overrides_path.write_text(yaml.dump(self._overrides))
-        defaults_path.write_text(self.__class__.create().to_yaml())
+        defaults = self.__class__.parse_and_instantiate({}).to_yaml()
+        defaults_path.write_text(defaults)
 
     def resolve_references(self, root_config=None):
         """Calls the reference lambdas on all fields.
