@@ -1,12 +1,27 @@
 import builtins
 import copy
 import inspect
+import itertools
 import logging
 import sys
 from collections import defaultdict
+from dataclasses import _FIELDS  # type: ignore
 from dataclasses import MISSING as DC_MISSING
 from dataclasses import dataclass
-from typing import Any, Callable, Dict, List, Type, TypeVar, Union, get_args, get_origin
+from functools import partial
+from pathlib import Path
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    List,
+    Optional,
+    Type,
+    TypeVar,
+    Union,
+    get_args,
+    get_origin,
+)
 
 import yaml
 
@@ -54,6 +69,7 @@ class ConfigMeta(type):
             if not isinstance(f, HydraletteField):
                 hydralette_field = HydraletteField.from_dc_field(f)
                 cls.__dataclass_fields__[key] = hydralette_field
+
         cls.class_validation()
         return cls
 
@@ -80,11 +96,12 @@ class ConfigBase(metaclass=ConfigMeta):
     """
 
     @classmethod
-    def create(cls: Type[T], overrides: List[str] = sys.argv[1:]) -> T:
+    def create(cls: Type[T], overrides: List[str] = sys.argv[1:], yaml_overrides: Optional[dict] = None) -> T:
         """Entry point to instantiate a config.
 
         Args:
-            overrides (List[str], optional): Overrides in the format `arg.subarg=value`. Defaults to `sys.argv[1:]`.
+            overrides (List[str], optional): Overrides in the format `arg.subarg=value`. Pass in the path to a yaml override file with `--overrides <path>`. Help page is printed if it contains `"-h"` or `"--help"`. Defaults to `sys.argv[1:]`.
+            yaml_overrides (dict, optional): YAML overrides as dict. Can alternatively be passed in the cli args via `--overrides=<path to yaml>`
 
         Raises:
             ValueError: If `cls` is not a subclass of ConfigBase
@@ -93,6 +110,9 @@ class ConfigBase(metaclass=ConfigMeta):
         Returns:
             T: Instance of the ConfigClass
         """
+        if yaml_overrides is None:
+            yaml_overrides = {}
+
         if not issubclass(cls, ConfigBase):
             raise ValueError(f"Type '{cls}' is not a subclass of ConfigBase")
 
@@ -101,69 +121,118 @@ class ConfigBase(metaclass=ConfigMeta):
                 cls.print_help_page()
                 raise SystemExit(0)
 
-        config = cls.parse_and_instantiate(overrides)
+        if "--overrides" in overrides:  # syntax --overrides <path>
+            if yaml_overrides:
+                log.warning(
+                    "YAML overrides are specified both from '--overrides <path>' and '.create(yaml_overrides=...)'."
+                    "Using '--overrides' by default."
+                )
+            overrides_idx = overrides.index("--overrides") + 1
+            yaml_path = Path(overrides[overrides_idx])
+            yaml_overrides = yaml.safe_load(yaml_path.read_text())
+            overrides = overrides[: overrides_idx - 1] + overrides[overrides_idx + 1 :]
+
+        for overrides_idx, override in enumerate(overrides):
+            if override.startswith("--overrides="):  # syntax --overrides=<path>
+                if yaml_overrides:
+                    log.warning(
+                        "YAML overrides are specified both from '--overrides=<path>' and '.create(yaml_overrides=...)'."
+                        "Using '--overrides' by default."
+                    )
+                yaml_path = Path(override.split("--overrides=")[1])
+                yaml_overrides = yaml.safe_load(yaml_path.read_text())
+                overrides = overrides[:overrides_idx] + overrides[overrides_idx + 1 :]
+                break
+
+        merged_overrides = cls.merge_overrides(cli_overrides=overrides, yaml_overrides=yaml_overrides)  # type: ignore
+        config = cls.parse_and_instantiate(merged_overrides)
+        config._overrides = merged_overrides  # type: ignore
         config.resolve_references()
         config.instance_validation()
         return config
 
     @classmethod
-    def parse_and_instantiate(cls: Type[T], overrides: List[str] = sys.argv[1:]) -> T:
+    def merge_overrides(cls, cli_overrides: List[str], yaml_overrides: dict) -> dict:
+        """Merge CLI and YAML overrides into YAML format
+
+        Args:
+            cli_overrides (List[str]): _description_
+            yaml_overrides (dict): _description_
+
+        Returns:
+            dict: merged overrides
+        """
+
+        for cli_override in cli_overrides:
+            current_d = yaml_overrides
+
+            key, value = cli_override.split("=")
+            subkeys = key.split(".")
+
+            for i in itertools.count():  # iterate like this to be able to change the iterable during iteration
+                if i > len(subkeys) - 1:
+                    break
+
+                if subkeys[i] not in current_d:
+                    current_d[subkeys[i]] = {}
+
+                if i != len(subkeys) - 1:
+                    current_d = current_d[subkeys[i]]
+                elif (
+                    hasattr((current_field := getattr(cls, _FIELDS, {}).get(subkeys[i])), "groups")
+                    and isinstance(current_field, HydraletteField)
+                    and current_field.groups != {}
+                ):
+                    current_d = current_d[subkeys[i]]
+                    subkeys.append("__group__")
+                else:
+                    current_d[subkeys[-1]] = value
+        return yaml_overrides
+
+    @classmethod
+    def parse_and_instantiate(cls: Type[T], overrides: dict) -> T:
         """Parse overrides and recursively instantiate config.
 
         Args:
-            cls (Type[T]): _description_
-            overrides (_type_, optional): _description_. Defaults to sys.argv[1:].
+            overrides (dict): Merged overrides, same format as YAML overrides.
 
         Raises:
             ValueError: _description_
             HydraletteConfigurationError: _description_
 
         Returns:
-            T: _description_
+            ConfigBase: instantiated config
         """
         kwargs = {}
-        sub_config_overrides = defaultdict(list)
+        nested_defaultdict = lambda: defaultdict(nested_defaultdict)
+        sub_config_overrides = nested_defaultdict()
         sub_config_types = defaultdict()
 
-        # parse overrides
-        for override in overrides:
-            key, value = override.split("=")
-            subkeys = key.split(".")
-
-            # Match key to the corresponding field
-            matched_field = None
+        for key, value in overrides.items():
             matched_fields = [field for field in fields(cls) if field.name == key]
-            matched_sub_fields = [field for field in fields(cls) if field.name == subkeys[0]]
-            if matched_fields:
-                matched_field = matched_fields[0]
-                top_level = True
-            elif matched_sub_fields:
-                matched_field = matched_sub_fields[0]
-                top_level = False
-            else:
+            if not matched_fields:
                 raise ValueError(f"Key '{key}' could not be found in {cls}")
+            matched_field = matched_fields[0]
 
-            # top level primitive assignments: key=val
-            if top_level and not is_hydralette_config(matched_field.type):
-                kwargs[key] = convert_type(matched_field, value)
-
-            # config groups: key=group_name
-            elif top_level and is_hydralette_config(matched_field.type):
-                if value not in matched_field.groups:
-                    raise HydraletteConfigurationError(
-                        f"Invalid group '{value}' for field '{matched_field.name}' " f"in '{cls.__module__}.{cls.__name__}'"
-                    )
-                sub_config_types[key] = matched_field.groups[value]
-
-            # sub level assignments: subkey[0].subkey[1]=val
-            else:
-                if subkeys[0] not in sub_config_types:
+            if isinstance(value, dict):
+                if key not in sub_config_types:
                     if matched_field.groups:
-                        field_type = matched_field.default
+                        if "__group__" in value:
+                            group_key = value.pop("__group__")
+                            if group_key not in matched_field.groups:
+                                raise HydraletteConfigurationError(
+                                    f"Invalid group '{value}' for field '{matched_field.name}' "
+                                    f"in '{cls.__module__}.{cls.__name__}'"
+                                )
+                            field_type = matched_field.groups[group_key]
+                        else:
+                            field_type = matched_field.default
                     else:
                         field_type = matched_field.type
-                    sub_config_types[subkeys[0]] = field_type
-                sub_config_overrides[subkeys[0]].append(f"{'.'.join(subkeys[1:])}={value}")
+                    sub_config_types[key] = field_type
+                sub_config_overrides[key] = value  # type: ignore
+            else:
+                kwargs[key] = convert_type(matched_field, value)
 
         # create sub configs that do not have overrides
         for f in fields(cls):
@@ -282,16 +351,20 @@ class ConfigBase(metaclass=ConfigMeta):
             elif isinstance(value, ConfigBase):
                 value.instance_validation()
 
-    def to_dict(self, only_repr=False) -> Dict[str, Any]:
-        """Convert config to dict. Recursively converts sub-configs to dicts as well.
+    def to_dict(self, only_repr=False, recursive=True) -> Dict[str, Any]:
+        """Convert config to dict. Optionally converts sub-configs to dicts as well.
 
         Args:
             only_repr (bool, optional): If true, all objects of non-builtin types are replaced by their repr. Useful for printing but not for serialization. Defaults to False.
+            recursive (bool, optional): If true, the conversion it repeated recursively for sub-configs. Defaults to True.
 
         Returns:
             Dict[str, Any]: Converted config
         """
-        return {field.name: _get_attr(self, field.name, only_repr=only_repr) for field in fields(self)}
+        if recursive:
+            return {field.name: _get_attr(self, field.name, only_repr=only_repr) for field in fields(self)}
+        else:
+            return {field.name: getattr(self, field.name) for field in fields(self)}
 
     def to_yaml(self, sort_keys=False, only_repr=False) -> str:
         """Convert config to YAML format.
@@ -309,6 +382,26 @@ class ConfigBase(metaclass=ConfigMeta):
     def print_yaml(self):
         """Prints the current config in YAML format with `only_repr=True`."""
         print(self.to_yaml(only_repr=True))
+
+    def save(
+        self,
+        dir: Optional[Union[str, Path]] = None,
+        config_name: str = "config.yaml",
+        overrides_name: str = "overrides.yaml",
+        defaults_name: str = "defaults.yaml",
+    ) -> None:
+        if dir is not None:
+            config_path = Path(dir, config_name)
+            overrides_path = Path(dir, overrides_name)
+            defaults_path = Path(dir, defaults_name)
+        else:
+            config_path = Path(config_name)
+            overrides_path = Path(overrides_name)
+            defaults_path = Path(defaults_name)
+
+        config_path.write_text(self.to_yaml())
+        overrides_path.write_text(yaml.dump(self._overrides))
+        defaults_path.write_text(self.__class__.create().to_yaml())
 
     def resolve_references(self, root_config=None):
         """Calls the reference lambdas on all fields.
@@ -406,10 +499,17 @@ def config_from_signature(callable: Callable) -> Type[ConfigBase]:
     if hasattr(callable, "__module__"):
         dunders["__module__"] = callable.__module__  # type: ignore
 
-    fields = {
-        parameter.name: field(default=parameter.default if parameter.default is not inspect._empty else MISSING)
-        for parameter in inspect.signature(callable)._parameters.values()  # type: ignore
-    }
+    fields = {}
+    for parameter in inspect.signature(callable)._parameters.values():  # type: ignore
+
+        def default_factory_generic(parameter):
+            if parameter.default is not inspect._empty:
+                return parameter.default
+            return MISSING
+
+        default_factory = partial(default_factory_generic, parameter=parameter)
+
+        fields[parameter.name] = field(default_factory=default_factory, default=DC_MISSING)
 
     T = type(f"{callable.__name__}Hydralette", (ConfigBase,), {**dunders, **fields})
     return T
