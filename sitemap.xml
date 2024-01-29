@@ -2,17 +2,12 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
     <url>
          <loc>https://valeknappich.github.io/hydralette/</loc>
-         <lastmod>2023-09-19</lastmod>
+         <lastmod>2024-01-29</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://valeknappich.github.io/hydralette/API/</loc>
-         <lastmod>2023-09-19</lastmod>
-         <changefreq>daily</changefreq>
-    </url>
-    <url>
-         <loc>https://valeknappich.github.io/hydralette/examples/</loc>
-         <lastmod>2023-09-19</lastmod>
+         <lastmod>2024-01-29</lastmod>
          <changefreq>daily</changefreq>
     </url>
 </urlset>
