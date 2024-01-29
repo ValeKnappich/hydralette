@@ -30,12 +30,10 @@ theme:
 
 nav:
   - Home: index.md
-  - Examples: examples.md
   - API: API.md
 
 plugins:
   - search
-  # - social
   - mkdocstrings
 
 

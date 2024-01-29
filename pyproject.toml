@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "hydralette"
-version = "0.1.5"
+version = "0.2.0"
 description = ""
 authors = ["ValeKnappich"]
 readme = "README.md"
