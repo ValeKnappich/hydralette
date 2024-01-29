@@ -1,4 +1,4 @@
-<div align="center">
+<div align="center" markdown="1">
 
 # Hydralette
 
@@ -23,6 +23,9 @@ poetry add hydralette
 
 ## Changelog
 
+- v0.2.0
+    - complete re-design --> breaking changes!
+    - easier creation of hierarchical configs
 - v0.1.5
     - Add yaml overrides
     - Add end-to-end tests with pytest
@@ -34,100 +37,162 @@ poetry add hydralette
     - Add support for `config groups`, `references`, `validation` and `type conversion`
     - Add CLI help pages
 
-## Example
+
+## Features
+
+### Basics
+
+Create a config using the `Config` class, passing the config fields as keyword arguments.
 
 ```python
-from dataclasses import dataclass
+from hydralette import Config
+cfg = Config(a=1, b=2, c="abc")
+```
+
+`Config` objects can be create from and exported to `dict`s.
+
+```python
+from hydralette import Config
+cfg = Config.from_dict({"a": 1, "b": 2, "c": "abc"})
+print(cfg.to_dict())
+```
+
+Every hydralette `Config` be overriden via CLI:
+
+```python
+from hydralette import Config, Field
+cfg = Config(
+    a=Field(default=1, help="Lorem ipsum"),
+    b=Config(
+        c=Field(default=2, help="Lorem ipsum")
+    )
+)
+cfg.apply(["--help"]) # or cfg.print_help()
+
+# prints:
+
+# Usage python script.py [OPTIONS]
+# --a 1                   Lorem ipsum
+# --b.c 1                 Lorem ipsum
+```
+
+After creation, you can override, resolve references, validate and check for missing required arguments.
+
+```python
+cfg.override(["--a", "1"]) # overrides defaults to sys.argv[1:]
+cfg.resolve_references()
+cfg.validate()
+cfg.check_required_args()
+# OR
+cfg.apply(["--a", "1"]) # shorthand for the above
+```
+
+
+### Groups
+
+Config groups can be very handy to make components interchangeable without requiring them to share a config.
+
+```python
+from hydralette import Config, Field
+cfg = Config(
+    model=Config(
+        _groups={
+            "_default": "rnn",
+            "rnn": Config(
+                n_layers=2,
+                bidirectional=False
+            ),
+            "transformer": Config(
+                n_layers=16,
+                num_attention_heads=8
+            )
+        }
+    )
+)
+cfg.apply(["--model", "transformer"])
+```
+
+### From signature / existing config
+
+Often times, part of your configuration is already implemented somewhere else and duplicating this information creates a source of failure. Instead, you can automatically generate your hydralette `Config` based on an existing interface
+
+```python
+
+def calc(a: int, b=2):
+    pass
+
+from hydralette import Config, Field
+cfg = Config(_from_signature=calc)
+# equivalent to
+cfg = Config(a=Field(type=int), b=Field(default=2, type=int))
+```
+
+
+### Fields
+
+When you directly pass a value to `Config`s constructor, hydralette will create a `Field` under the hood. To use additional features, you can create it explicitly
+
+`convert`: Specify how command-line overrides should be converted to the target type. If not explicitly specified, hydralette tries to use the field's `type` as conversion function (`type` is either explicitly specified or automatically derived from `default` / `default_factory`).
+
+```python
+import json
+from hydralette import Config, Field
+cfg = Config(my_dict=Field(default={"a": 1, "b": {"c": 2}}, convert=json.loads))
+cfg.apply(['--my_dict', r'{"a": 2, "b": {"c": 3}}'])
+```
+
+`validate`: Constrain what values are valid for your field. If the validity of a value depends on the rest of the config, use `_validate` in the `Config` constructor instead.
+
+```python
+from hydralette import Config, Field
+cfg = Config(n=Field(default=1, validate=lambda n: n > 0))
+cfg.apply(['--n', '-1'])
+# throws: ValidationError: Field validation failed for -1
+cfg = Config(_validate=lambda cfg: cfg.a > cfg.b, a=1, b=2)
+cfg.apply() # or cfg.validate()
+# throws: ValidationError: Config validation failed for {'a': 1, 'b': 2}
+```
+
+`reference` / `reference_root`: Refer to any other value in the config
+
+```python
+from hydralette import Config, Field
 from pathlib import Path
-import tempfile
-from typing import Union
-
-import yaml
-
-from hydralette import ConfigBase, field
-
-
-# lets assume this is defined in some library, i.e. you cant change the code
-@dataclass
-class LibraryConfig:
-    a: int = 1
-    b: float = 4.0
-
-
-class LibraryConfigHydralette(LibraryConfig, ConfigBase): # <-- turn it into a hydralette config by subclassing
-    pass
-
-
-def some_function(a: int, b: float = 4.0): # <-- arbitrary interface that we can turn into a hydralette config
-    pass
-
-
-class TransformerModelConfig(ConfigBase):
-    n_layers: int = field(
-        default=32,
-        metadata=dict(help="Number of Transformer Layers"),
-        validate=lambda value: value > 0   # <-- validate config value
+cfg = Config(
+    dir=Path("outputs"),
+    train=Config(
+        checkpoint_dir=Field(reference_root=lambda cfg: cfg.dir / "checkpoints"), # relative to current config
+        metrics_dir=Field(reference=lambda cfg: cfg.checkpoint_dir.parent / "metrics") # relative to root config
     )
-    num_attention_heads: int = field(
-        default=8,
-        metadata=dict(help="Number of Attention Heads per Layer")
-    )
+)
+cfg.resolve_references()
+```
 
 
-class RNNModelConfig(ConfigBase):
-    n_layers: int = field(
-        default=4,
-        metadata=dict(help="Number of RNN Layers")
-    )
-    bidirectional: bool = field(
-        default=True,
-        metadata=dict(help="Bidirectional or Unidirectional RNN Layers")
-    )
 
 
-class Config(ConfigBase):
-    output_dir: Path = field(
-        default=Path("output"),
-        metadata=dict(help="Output directory to save all results to"),
-        convert=lambda path: Path(path).expanduser(),   # <-- custom conversion lambda, otherwise type hint is tried
-    )
-    model: Union[TransformerModelConfig, RNNModelConfig] = field(
-        default=RNNModelConfig,     # <-- default group
-        metadata=dict(help="Config for model"),
-        groups=dict(transformer=TransformerModelConfig, rnn=RNNModelConfig),    # <-- define groups
-    )
-    library: LibraryConfigHydralette = field(
-        default_factory=LibraryConfigHydralette,   # <-- regular hierarchical config
-        metadata=dict(help="Config for library")
-    )
-    interface = field(
-        from_signature=some_function,  # <-- use function signature to derive config
-        metadata=dict(help="Config for some_function")
-    )
 
+## Backlog
 
-if __name__ == "__main__":
-    # you can print it explicitly, otherwise this is called
-    # automatically with .create() if -h or --help are in the overrides
-    Config.print_help_page()
+- [x] CLI
+- [x] groups
+- [x] from signatures
+- [x] validation
+- [x] conversion
+- [x] references
+- [ ] allow combining _groups with _fields
+- [ ] dict overrides
+- [ ] special support for boolean flags in CLI
 
-    # instantiate the config with .create()!
-    # there are 2 main ways of overriding values via CLI:
-    # 1. load overrides from yaml file
-    # 2. override individual values via key1.key2.key3=value
+## Dev Info
 
-    # Save some overrides to YAML file
-    yaml_overrides = {"output_dir": "myoutput", "model": {"n_layers": 64}}
-    s = yaml.dump(yaml_overrides)
-    f = tempfile.NamedTemporaryFile("w")
-    f.write(s)
-    f.flush()
-
-    overrides = f"interface.a=3 --overrides {f.name}"
-    config = Config.create(
-        overrides=overrides.split(" "), # splitting by space mimics the format of sys.argv
-        yaml_overrides=None # alternatively to specifying the yaml path to --overrides, you can also pass the dict here
-    )
-    config.print_yaml()
-    config.save(".") # saves 3 files to the specified directory: config.yaml, defaults.yaml and overrides.yaml
+```bash
+# Run Tests
+pytest
+# Push to github + create release
+git push
+# Publish to pypi
+poetry publish
+# Publish docs
+mkdocs gh-deploy
 ```
