@@ -23,6 +23,9 @@ poetry add hydralette
 
 ## Changelog
 
+- v0.2.1
+    - fix yaml representation
+    - support setting value to None in automatic conversion
 - v0.2.0
     - complete re-design --> breaking changes!
     - easier creation of hierarchical configs
@@ -186,13 +189,13 @@ cfg.resolve_references()
 
 ## Dev Info
 
-```bash
-# Run Tests
-pytest
-# Push to github + create release
-git push
-# Publish to pypi
-poetry publish
-# Publish docs
-mkdocs gh-deploy
-```
+Steps on new release:
+
+1. Run tests `pytest`
+2. Edit docs
+3. Increment version in `pyproject.toml`
+4. Add changelog to `README.md`
+5. Push increment to GitHub
+6. Publish to PyPI `poetry publish --build`
+7. Publish docs `mkdocs gh-deploy`
+8. Create release and tag on GitHub
