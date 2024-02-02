@@ -453,6 +453,11 @@
 </span></code></pre></div>
 <h2 id="changelog">Changelog</h2>
 <ul>
+<li>v0.2.1<ul>
+<li>fix yaml representation</li>
+<li>support setting value to None in automatic conversion</li>
+</ul>
+</li>
 <li>v0.2.0<ul>
 <li>complete re-design --&gt; breaking changes!</li>
 <li>easier creation of hierarchical configs</li>
@@ -584,11 +589,16 @@
 <li>[ ] special support for boolean flags in CLI</li>
 </ul>
 <h2 id="dev-info">Dev Info</h2>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="c1"># Run Tests</span>
-</span><span id="__span-10-2"><a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>pytest
-</span><span id="__span-10-3"><a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a><span class="c1"># Publish docs</span>
-</span><span id="__span-10-4"><a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a>mkdocs<span class="w"> </span>gh-deploy
-</span></code></pre></div>
+<p>Steps on new release:</p>
+<ol>
+<li>Run tests <code>pytest</code></li>
+<li>Edit docs</li>
+<li>Increment version in <code>pyproject.toml</code></li>
+<li>Add changelog to <code>README.md</code></li>
+<li>Push increment to GitHub</li>
+<li>Publish to PyPI <code>poetry publish --build</code></li>
+<li>Publish docs <code>mkdocs gh-deploy</code></li>
+</ol>
 
 
 
