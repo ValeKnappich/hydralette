@@ -361,7 +361,8 @@ class Field:
             try:
                 value = self.type(value)
             except:  # noqa
-                pass
+                if value == "None":
+                    value = None
 
         return value
 
