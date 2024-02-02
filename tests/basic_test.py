@@ -7,17 +7,20 @@ from hydralette import Config, Field, ValidationError
 
 
 def test_1():
+    """Basic single-level test"""
     cfg = Config(a=1, b=2, c="abc")
     assert cfg.to_dict() == {"a": 1, "b": 2, "c": "abc"}
 
 
 def test_2():
+    """Test automatic conversion based on type"""
     cfg = Config(a=Field(default=1, help="Lorem ipsum"), b=Config(c=Field(default=2, help="Lorem ipsum")))
     cfg.apply(["--b.c", "4"])
     assert cfg.b.c == 4
 
 
 def test_3():
+    """Test config group"""
     cfg = Config(
         model=Config(
             _groups={
@@ -32,6 +35,8 @@ def test_3():
 
 
 def test_4():
+    """Test from signature"""
+
     def calc(a: int, b=2):
         pass
 
@@ -41,12 +46,14 @@ def test_4():
 
 
 def test_5():
+    """Test custom conversion"""
     cfg = Config(my_dict=Field(default={"a": 1, "b": {"c": 2}}, convert=json.loads))
     cfg.apply(["--my_dict", r'{"a": 2, "b": {"c": 3}}'])
     assert cfg.my_dict == {"a": 2, "b": {"c": 3}}
 
 
 def test_6():
+    """Test validation"""
     cfg = Config(n=Field(default=1, validate=lambda n: n > 0))
     with pytest.raises(ValidationError):
         cfg.apply(["--n", "-1"])
@@ -59,6 +66,7 @@ def test_6():
 
 
 def test_7():
+    """Test references"""
     cfg = Config(
         dir=Path("outputs"),
         train=Config(
@@ -72,3 +80,40 @@ def test_7():
         "dir": Path("outputs"),
         "train": {"checkpoint_dir": Path("outputs/checkpoints"), "metrics_dir": Path("outputs/metrics")},
     }
+
+
+def test_8():
+    """Test setting field to None"""
+    cfg = Config(a=1)
+    cfg.apply(["--a", "None"])
+    assert cfg.a is None
+
+
+def test_9():
+    """Test exporting to yaml"""
+
+    class MyObj:
+        def __repr__(self):
+            return "MyObj"
+
+    cfg = Config(
+        a=1,
+        sub=Config(_groups=dict(_default="a", a=Config(s1=1, s2=3), b=Config(s2=4, s1=5))),
+        b=Config(c=Config(d=Config(e=Field(default=MyObj())))),
+    )
+    cfg.apply(["--sub", "b"])
+
+    assert (
+        cfg.to_yaml()
+        == repr(cfg)
+        == """
+a: 1
+sub:
+  s2: 4
+  s1: 5
+b:
+  c:
+    d:
+      e: MyObj
+""".strip()
+    )
