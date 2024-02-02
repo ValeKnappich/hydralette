@@ -245,13 +245,21 @@ class Config:
             group = self._groups[self._current_group]  # type: ignore
             return {k: format_value(v) for k, v in group._fields.items()}
 
-    def __repr__(self) -> str:
+    def to_yaml(self) -> str:
         def normalize_values(d: dict):
-            return {
-                k: v if is_builtin(type(v)) else repr(v) if not isinstance(v, dict) else normalize_values(v) for k, v in d.items()
-            }
+            for k, v in d.items():
+                if isinstance(v, dict):
+                    d[k] = normalize_values(v)
+                elif is_builtin(type(v)):
+                    d[k] = v
+                else:
+                    d[k] = repr(v)
+            return d
 
         return yaml.dump(normalize_values(self.to_dict()), sort_keys=False).strip()
+
+    def __repr__(self) -> str:
+        return self.to_yaml()
 
     def __getattr__(self, __name: str) -> Any:
         if __name in self._fields:
