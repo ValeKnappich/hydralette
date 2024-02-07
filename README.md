@@ -185,9 +185,8 @@ cfg.resolve_references()
 - [x] references
 - [x] yaml representation
 - [x] pickle serialization
-- [ ] allow combining _groups with _fields
-- [ ] dict overrides
-- [ ] special support for boolean flags in CLI
+- [x] allow combining _groups, _fields and _from_signature
+- [x] special support for boolean flags in CLI
 
 ## Dev Info
 
