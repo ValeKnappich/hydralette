@@ -23,6 +23,10 @@ poetry add hydralette
 
 ## Changelog
 
+- v0.2.2
+    - support mixing _fields, _groups and _from_signature
+    - support literal values as groups
+    - add boolean flags as `--flag` or `--no-flag`
 - v0.2.1
     - fix yaml representation
     - support setting value to None in automatic conversion
