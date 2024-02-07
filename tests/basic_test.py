@@ -135,3 +135,8 @@ def test_10():
     cfg2 = Config.from_pickle(tmp_file)
     assert cfg.dir == cfg2.dir
     assert "outputs2" in str(cfg.dir)
+
+
+def test_11():
+    """Test from dict and equality"""
+    assert Config(a=1, b=Config(c=2, d=4)) == Config.from_dict({"a": 1, "b": {"c": 2, "d": 4}})

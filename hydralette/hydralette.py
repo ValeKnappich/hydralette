@@ -1,7 +1,6 @@
 import builtins
 import inspect
 import sys
-from collections.abc import Mapping
 from pathlib import Path
 from typing import Any, Callable, Union
 
@@ -49,6 +48,7 @@ class Config:
         _from_signature: Callable | UNSPECIFIED_TYPE = UNSPECIFIED,
         **_fields,
     ):
+        """Config constructor. Its only possible to use one specification method at a time, i.e. one of (_groups, _from_signature, fields)"""
         self._validate = _validate
         self._groups = _groups
         self._from_signature = _from_signature
@@ -77,12 +77,14 @@ class Config:
             self._fields = fields_from_signature(inspect.signature(self._from_signature))
 
     def _make_fields(self, fields: dict[str, Any]) -> dict[str, "Config | Field"]:
+        """Create Field objects for fields that were passed as default value only."""
         for k, v in fields.items():
             if not isinstance(v, Field) and not isinstance(v, Config):
                 fields[k] = Field(default=v)
         return fields
 
     def check_required_args(self, _path="") -> None:
+        """Verify that all required arguments were set. Recursively searches config fields for UNSPECIFIED"""
         for name, field in self._fields.items():
             if isinstance(field, Field):
                 if isinstance(field.value, UNSPECIFIED_TYPE):
@@ -93,83 +95,76 @@ class Config:
             elif isinstance(field, Config):
                 field.check_required_args(_path=f"{_path}{name}.")
 
-    def apply(self, overrides: list[str] | dict = sys.argv[1:]) -> None:
+    def apply(self, overrides: list[str] = sys.argv[1:]) -> None:
+        """Convenience method for common workflow after instantiation.
+        Overrides fields from CLI, resolves references, runs validation functions and searches for unset required arguments"""
         self.override(overrides)
         self.resolve_references()
         self.validate()
         self.check_required_args()
 
-    def validate(self, _path="") -> None:
+    def validate(self) -> None:
+        """Run validation functions recursively"""
+        # Run validation for this config
         if not isinstance(self._validate, UNSPECIFIED_TYPE):
             if not self._validate(self):
                 raise ValidationError(f"Config validation failed for {self.to_dict()}")
 
-        for name, field in self._fields.items():
+        # Recursively validate sub-configs
+        for field in self._fields.values():
             if isinstance(field, Config):
-                field.check_required_args(_path=f"{_path}{name}.")
+                field.validate()
 
-    def override(self, overrides: list[str] | dict = sys.argv[1:]) -> None:
-        if isinstance(overrides, list):
-            if "--help" in overrides:
-                self.print_help()
-                sys.exit(0)
+    def override(self, overrides: list[str] = sys.argv[1:]) -> None:
+        """Override values from commandline.
+        'overrides' argument should be of the same format as sys.argv[1:], e.g. ["--a.b", "1"].
+        Automatically prints help page if "--help" is in the overrides."""
+        if "--help" in overrides:
+            self.print_help()
+            sys.exit(0)
 
-            for i in range(0, len(overrides), 2):
-                key = overrides[i][2:]
-                value = overrides[i + 1]
+        for i in range(0, len(overrides), 2):
+            key = overrides[i][2:]
+            value = overrides[i + 1]
 
-                if "." in key:
-                    first_key = key.split(".")[0]
-                    rest = ".".join(key.split(".")[1:])
+            if "." in key:
+                first_key = key.split(".")[0]
+                rest = ".".join(key.split(".")[1:])
 
-                    cfg = self if isinstance(self._groups, UNSPECIFIED_TYPE) else self._groups[self._current_group]  # type: ignore
-                    if first_key not in cfg._fields:
-                        raise OverrideError(f"Override key '{first_key}' not found")
-                    sub_cfg = cfg._fields[first_key]
-                    if not isinstance(sub_cfg, Config):
-                        raise OverrideError(f"Field '{first_key}' is not a Config")
-                    sub_cfg.override([f"--{rest}", value])
+                cfg = self if isinstance(self._groups, UNSPECIFIED_TYPE) else self._groups[self._current_group]  # type: ignore
+                if first_key not in cfg._fields:
+                    raise OverrideError(f"Override key '{first_key}' not found")
+                sub_cfg = cfg._fields[first_key]
+                if not isinstance(sub_cfg, Config):
+                    raise OverrideError(f"Field '{first_key}' is not a Config")
+                sub_cfg.override([f"--{rest}", value])
 
-                else:
-                    if isinstance(self._groups, UNSPECIFIED_TYPE):
-                        if key not in self._fields:
-                            raise OverrideError(f"Override key {key} not found")
+            else:
+                if isinstance(self._groups, UNSPECIFIED_TYPE):
+                    if key not in self._fields:
+                        raise OverrideError(f"Override key {key} not found")
 
-                        child = self._fields[key]
-                        if isinstance(child, Field):
-                            child.value = child.convert_value(value)
-
-                        elif isinstance(child, Config):
-                            if isinstance(child._groups, UNSPECIFIED_TYPE):
-                                raise OverrideError("Can't override config unless it has groups")
-                            elif value not in child._groups:
-                                raise OverrideError(f"Group '{value}' does not exist")
-                            child._current_group = value
-                    else:
-                        fields = self._groups[self._current_group]._fields  # type: ignore
-                        if key not in fields:
-                            raise OverrideError(f"Field '{key}' not found")
-                        child = fields[key]
-                        if not isinstance(child, Field):
-                            raise OverrideError("Can't override config unless it has groups")
+                    child = self._fields[key]
+                    if isinstance(child, Field):
                         child.value = child.convert_value(value)
 
-        elif isinstance(overrides, Mapping):
-            # def flatten_dict(nested_dict, prefix='--'):
-            #     flattened = []
-            #     for key, value in nested_dict.items():
-            #         if isinstance(value, Mapping):
-            #             flattened.extend(flatten_dict(value, prefix + key + '.'))
-            #         else:
-            #             flattened.append(f'{prefix}{key} {value}')
-            #     return flattened
-
-            # self.override(flatten_dict(overrides))
-
-            # converting to string is problematic because values are converted to string --> need to re-implement recursion for mappings
-            raise NotImplementedError("Overrides from mapping not supported yet")
+                    elif isinstance(child, Config):
+                        if isinstance(child._groups, UNSPECIFIED_TYPE):
+                            raise OverrideError("Can't override config unless it has groups")
+                        elif value not in child._groups:
+                            raise OverrideError(f"Group '{value}' does not exist")
+                        child._current_group = value
+                else:
+                    fields = self._groups[self._current_group]._fields  # type: ignore
+                    if key not in fields:
+                        raise OverrideError(f"Field '{key}' not found")
+                    child = fields[key]
+                    if not isinstance(child, Field):
+                        raise OverrideError("Can't override config unless it has groups")
+                    child.value = child.convert_value(value)
 
     def resolve_references(self, _root: "Config | UNSPECIFIED_TYPE" = UNSPECIFIED) -> None:
+        """Recursively run 'reference' and 'root_reference' functions"""
         if isinstance(_root, UNSPECIFIED_TYPE):
             _root = self
 
@@ -189,6 +184,7 @@ class Config:
                 field.resolve_references(_root=_root)
 
     def print_help(self, _path: str = "", _group_prefix: str = "", _root: bool = True) -> None:
+        """Print help page for CLI."""
         if _root:
             print(f"Usage python {sys.argv[0]} [OPTIONS]")
 
@@ -229,10 +225,15 @@ class Config:
 
     @classmethod
     def from_dict(cls, d: dict) -> "Config":
+        """Create Config from dict recursively.
+        Config(a=1, b=Config(c=2, d=4)) == Config.from_dict({"a": 1, "b": {"c": 2, "d": 4}})"""
         cfg_dict = {k: v if not isinstance(v, dict) else Config.from_dict(v) for k, v in d.items()}
         return Config(**cfg_dict)  # type: ignore
 
     def to_dict(self) -> dict:
+        """Convert config to dict {field_name: field.value}.
+        Resulting dict does not include extra features like validation or reference lambdas, just field names and values."""
+
         def format_value(v):
             if isinstance(v, Field):
                 return v.value
@@ -248,6 +249,10 @@ class Config:
             return {k: format_value(v) for k, v in group._fields.items()}
 
     def to_yaml(self) -> str:
+        """Convert config to YAML.
+        This is not intended as re-loadable serialization, but merely as a readable representation of the config!
+        To save and load your config later, use `.to_pickle` instead."""
+
         def normalize_values(d: dict):
             for k, v in d.items():
                 if isinstance(v, dict):
@@ -261,11 +266,13 @@ class Config:
         return yaml.dump(normalize_values(self.to_dict()), sort_keys=False).strip()
 
     def to_pickle(self, path: str | Path) -> None:
+        """Pickle the config using dill."""
         with open(path, "wb") as fp:
             dill.dump(self, fp, dill.HIGHEST_PROTOCOL)
 
     @staticmethod
     def from_pickle(path: str | Path) -> "Config":
+        """Load pickled config using dill"""
         with open(path, "rb") as fp:
             cfg = dill.load(fp, dill.HIGHEST_PROTOCOL)
         return cfg
@@ -277,9 +284,11 @@ class Config:
         self.__dict__ = state
 
     def __repr__(self) -> str:
+        """Use yaml formatting as readable representation of a config. Might change in the future."""
         return self.to_yaml()
 
     def __getattr__(self, __name: str) -> Any:
+        """Allow direct member access to fields. Is only called if the name could not be found in the config object."""
         if __name in self._fields:
             v = self._fields[__name]
             if isinstance(v, Field):
@@ -295,6 +304,8 @@ class Config:
         raise AttributeError(f"{__name} not found. Fields: {list(self._fields.keys())}")
 
     def __setattr__(self, __name: str, __value: Any) -> None:
+        """Sets the value for a field.
+        This automatically triggers the validation on the config and the field."""
         if __name in {
             "_validate",
             "_groups",
@@ -318,6 +329,13 @@ class Config:
 
         else:
             raise AttributeError(f"{__name} not found")
+
+    def __eq__(self, other):
+        """Check equality using to_dict"""
+        if not isinstance(other, Config):
+            return False
+
+        return self.to_dict() == other.to_dict()
 
 
 class Field:
