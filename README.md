@@ -183,6 +183,8 @@ cfg.resolve_references()
 - [x] validation
 - [x] conversion
 - [x] references
+- [x] yaml representation
+- [x] pickle serialization
 - [ ] allow combining _groups with _fields
 - [ ] dict overrides
 - [ ] special support for boolean flags in CLI

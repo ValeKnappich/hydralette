@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "hydralette"
-version = "0.2.0"
+version = "0.2.1"
 description = ""
 authors = ["ValeKnappich"]
 readme = "README.md"
@@ -14,6 +14,7 @@ include = ["LICENSE"]
 [tool.poetry.dependencies]
 python = "^3.10"
 pyyaml = "^6.0.1"
+dill = "^0.3.8"
 
 [tool.poetry.group.dev.dependencies]
 pre-commit = "^3.3.3"

@@ -2,8 +2,10 @@ import builtins
 import inspect
 import sys
 from collections.abc import Mapping
+from pathlib import Path
 from typing import Any, Callable, Union
 
+import dill
 import yaml
 
 
@@ -258,6 +260,22 @@ class Config:
 
         return yaml.dump(normalize_values(self.to_dict()), sort_keys=False).strip()
 
+    def to_pickle(self, path: str | Path) -> None:
+        with open(path, "wb") as fp:
+            dill.dump(self, fp, dill.HIGHEST_PROTOCOL)
+
+    @staticmethod
+    def from_pickle(path: str | Path) -> "Config":
+        with open(path, "rb") as fp:
+            cfg = dill.load(fp, dill.HIGHEST_PROTOCOL)
+        return cfg
+
+    def __getstate__(self) -> object:
+        return self.__dict__
+
+    def __setstate__(self, state) -> None:
+        self.__dict__ = state
+
     def __repr__(self) -> str:
         return self.to_yaml()
 
@@ -283,7 +301,7 @@ class Config:
             "_from_signature",
             "_current_group",
             "_fields",
-        }:
+        } or __name.startswith("__"):
             super().__setattr__(__name, __value)
 
         elif __name in self._fields:

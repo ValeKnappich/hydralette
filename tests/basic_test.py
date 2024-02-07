@@ -1,4 +1,5 @@
 import json
+import tempfile
 from pathlib import Path
 
 import pytest
@@ -117,3 +118,20 @@ b:
       e: MyObj
 """.strip()
     )
+
+
+def test_10():
+    """Test pickle serialization"""
+    cfg = Config(
+        dir=Path("outputs"),
+        train=Config(
+            checkpoint_dir=Field(reference_root=lambda cfg: cfg.dir / "checkpoints"),  # relative to current config
+            metrics_dir=Field(reference=lambda cfg: cfg.checkpoint_dir.parent / "metrics"),  # relative to root config
+        ),
+    )
+    cfg.apply(["--dir", "outputs2"])
+    tmp_file = tempfile.NamedTemporaryFile().name
+    cfg.to_pickle(tmp_file)
+    cfg2 = Config.from_pickle(tmp_file)
+    assert cfg.dir == cfg2.dir
+    assert "outputs2" in str(cfg.dir)

@@ -7,7 +7,7 @@
         show_if_no_docstring: true
         show_signature: true
         heading_level: 3
-        members: [__init__, apply, override, check_required_args, validate, resolve_references, print_help, from_dict, to_dict, to_yaml]
+        members: [__init__, apply, override, check_required_args, validate, resolve_references, print_help, from_dict, to_dict, to_yaml, to_pickle, from_pickle]
 
 ::: hydralette.Field
     options:
@@ -15,4 +15,4 @@
         show_if_no_docstring: true
         show_signature: true
         heading_level: 3
-        members: [__init__, value]
+        members: [__init__, from_signature_paramter]
