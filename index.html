@@ -453,6 +453,12 @@
 </span></code></pre></div>
 <h2 id="changelog">Changelog</h2>
 <ul>
+<li>v0.2.2<ul>
+<li>support mixing _fields, _groups and _from_signature</li>
+<li>support literal values as groups</li>
+<li>add boolean flags as <code>--flag</code> or <code>--no-flag</code></li>
+</ul>
+</li>
 <li>v0.2.1<ul>
 <li>fix yaml representation</li>
 <li>support setting value to None in automatic conversion</li>
@@ -584,9 +590,10 @@
 <li>[x] validation</li>
 <li>[x] conversion</li>
 <li>[x] references</li>
-<li>[ ] allow combining _groups with _fields</li>
-<li>[ ] dict overrides</li>
-<li>[ ] special support for boolean flags in CLI</li>
+<li>[x] yaml representation</li>
+<li>[x] pickle serialization</li>
+<li>[x] allow combining _groups, _fields and _from_signature</li>
+<li>[x] special support for boolean flags in CLI</li>
 </ul>
 <h2 id="dev-info">Dev Info</h2>
 <p>Steps on new release:</p>
