@@ -23,6 +23,8 @@ poetry add hydralette
 
 ## Changelog
 
+- v0.2.3
+    - change version of `dill` dependency
 - v0.2.2
     - support mixing _fields, _groups and _from_signature
     - support literal values as groups
