@@ -453,6 +453,14 @@
 </span></code></pre></div>
 <h2 id="changelog">Changelog</h2>
 <ul>
+<li>v0.2.4<ul>
+<li>bugfix: allow overriding fields with reference</li>
+</ul>
+</li>
+<li>v0.2.3<ul>
+<li>change version of <code>dill</code> dependency</li>
+</ul>
+</li>
 <li>v0.2.2<ul>
 <li>support mixing _fields, _groups and _from_signature</li>
 <li>support literal values as groups</li>
@@ -570,14 +578,18 @@
 </span><span id="__span-8-6"><a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a><span class="n">cfg</span><span class="o">.</span><span class="n">apply</span><span class="p">()</span> <span class="c1"># or cfg.validate()</span>
 </span><span id="__span-8-7"><a id="__codelineno-8-7" name="__codelineno-8-7" href="#__codelineno-8-7"></a><span class="c1"># throws: ValidationError: Config validation failed for {&#39;a&#39;: 1, &#39;b&#39;: 2}</span>
 </span></code></pre></div>
-<p><code>reference</code> / <code>reference_root</code>: Refer to any other value in the config</p>
+<p><code>reference</code> / <code>reference_root</code>: Refer to any other value in the config or root config </p>
+<blockquote>
+<p>[!NOTE]<br />
+Hydralette will not automatically infer the type from the reference lambda. To get automatic conversion of CLI arguments, pass <code>type</code> or <code>convert</code> explicitly.</p>
+</blockquote>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="kn">from</span> <span class="nn">hydralette</span> <span class="kn">import</span> <span class="n">Config</span><span class="p">,</span> <span class="n">Field</span>
 </span><span id="__span-9-2"><a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a><span class="kn">from</span> <span class="nn">pathlib</span> <span class="kn">import</span> <span class="n">Path</span>
 </span><span id="__span-9-3"><a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a><span class="n">cfg</span> <span class="o">=</span> <span class="n">Config</span><span class="p">(</span>
 </span><span id="__span-9-4"><a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a>    <span class="nb">dir</span><span class="o">=</span><span class="n">Path</span><span class="p">(</span><span class="s2">&quot;outputs&quot;</span><span class="p">),</span>
 </span><span id="__span-9-5"><a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a>    <span class="n">train</span><span class="o">=</span><span class="n">Config</span><span class="p">(</span>
-</span><span id="__span-9-6"><a id="__codelineno-9-6" name="__codelineno-9-6" href="#__codelineno-9-6"></a>        <span class="n">checkpoint_dir</span><span class="o">=</span><span class="n">Field</span><span class="p">(</span><span class="n">reference_root</span><span class="o">=</span><span class="k">lambda</span> <span class="n">cfg</span><span class="p">:</span> <span class="n">cfg</span><span class="o">.</span><span class="n">dir</span> <span class="o">/</span> <span class="s2">&quot;checkpoints&quot;</span><span class="p">),</span> <span class="c1"># relative to current config</span>
-</span><span id="__span-9-7"><a id="__codelineno-9-7" name="__codelineno-9-7" href="#__codelineno-9-7"></a>        <span class="n">metrics_dir</span><span class="o">=</span><span class="n">Field</span><span class="p">(</span><span class="n">reference</span><span class="o">=</span><span class="k">lambda</span> <span class="n">cfg</span><span class="p">:</span> <span class="n">cfg</span><span class="o">.</span><span class="n">checkpoint_dir</span><span class="o">.</span><span class="n">parent</span> <span class="o">/</span> <span class="s2">&quot;metrics&quot;</span><span class="p">)</span> <span class="c1"># relative to root config</span>
+</span><span id="__span-9-6"><a id="__codelineno-9-6" name="__codelineno-9-6" href="#__codelineno-9-6"></a>        <span class="n">checkpoint_dir</span><span class="o">=</span><span class="n">Field</span><span class="p">(</span><span class="n">reference_root</span><span class="o">=</span><span class="k">lambda</span> <span class="n">cfg</span><span class="p">:</span> <span class="n">cfg</span><span class="o">.</span><span class="n">dir</span> <span class="o">/</span> <span class="s2">&quot;checkpoints&quot;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="n">Path</span><span class="p">),</span> <span class="c1"># relative to current config</span>
+</span><span id="__span-9-7"><a id="__codelineno-9-7" name="__codelineno-9-7" href="#__codelineno-9-7"></a>        <span class="n">metrics_dir</span><span class="o">=</span><span class="n">Field</span><span class="p">(</span><span class="n">reference</span><span class="o">=</span><span class="k">lambda</span> <span class="n">cfg</span><span class="p">:</span> <span class="n">cfg</span><span class="o">.</span><span class="n">checkpoint_dir</span><span class="o">.</span><span class="n">parent</span> <span class="o">/</span> <span class="s2">&quot;metrics&quot;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="n">Path</span><span class="p">)</span> <span class="c1"># relative to root config</span>
 </span><span id="__span-9-8"><a id="__codelineno-9-8" name="__codelineno-9-8" href="#__codelineno-9-8"></a>    <span class="p">)</span>
 </span><span id="__span-9-9"><a id="__codelineno-9-9" name="__codelineno-9-9" href="#__codelineno-9-9"></a><span class="p">)</span>
 </span><span id="__span-9-10"><a id="__codelineno-9-10" name="__codelineno-9-10" href="#__codelineno-9-10"></a><span class="n">cfg</span><span class="o">.</span><span class="n">resolve_references</span><span class="p">()</span>
