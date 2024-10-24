@@ -23,6 +23,8 @@ poetry add hydralette
 
 ## Changelog
 
+- v0.2.4
+    - bugfix: allow overriding fields with reference
 - v0.2.3
     - change version of `dill` dependency
 - v0.2.2
@@ -162,7 +164,10 @@ cfg.apply() # or cfg.validate()
 # throws: ValidationError: Config validation failed for {'a': 1, 'b': 2}
 ```
 
-`reference` / `reference_root`: Refer to any other value in the config
+`reference` / `reference_root`: Refer to any other value in the config or root config 
+
+> [!NOTE]  
+> Hydralette will not automatically infer the type from the reference lambda. To get automatic conversion of CLI arguments, pass `type` or `convert` explicitly.
 
 ```python
 from hydralette import Config, Field
@@ -170,8 +175,8 @@ from pathlib import Path
 cfg = Config(
     dir=Path("outputs"),
     train=Config(
-        checkpoint_dir=Field(reference_root=lambda cfg: cfg.dir / "checkpoints"), # relative to current config
-        metrics_dir=Field(reference=lambda cfg: cfg.checkpoint_dir.parent / "metrics") # relative to root config
+        checkpoint_dir=Field(reference_root=lambda cfg: cfg.dir / "checkpoints", type=Path), # relative to current config
+        metrics_dir=Field(reference=lambda cfg: cfg.checkpoint_dir.parent / "metrics", type=Path) # relative to root config
     )
 )
 cfg.resolve_references()

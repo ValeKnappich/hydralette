@@ -202,6 +202,7 @@ class Config:
                 # regular field override
                 if isinstance(child, Field):
                     child.value = child.convert_value(value)
+                    child.was_overriden = True
 
                 # switch groups override
                 elif isinstance(child, Config):
@@ -217,10 +218,10 @@ class Config:
             _root = self
 
         for field in get_all_fields(self).values():
-            if isinstance(field, Field) and not isinstance(field.reference, UNSPECIFIED_TYPE):
+            if isinstance(field, Field) and not field.was_overriden and not isinstance(field.reference, UNSPECIFIED_TYPE):
                 field.value = field.reference(self)
 
-            elif isinstance(field, Field) and not isinstance(field.reference_root, UNSPECIFIED_TYPE):
+            elif isinstance(field, Field) and not field.was_overriden and not isinstance(field.reference_root, UNSPECIFIED_TYPE):
                 field.value = field.reference_root(_root)
 
             elif isinstance(field, Config):
@@ -385,6 +386,7 @@ class Config:
 
 
 class Field:
+
     def __init__(
         self,
         type: type | UNSPECIFIED_TYPE = UNSPECIFIED,
@@ -404,6 +406,7 @@ class Field:
         self.help = help
         self.reference = reference
         self.reference_root = reference_root
+        self.was_overriden = False
 
         self._value = None
         _value = UNSPECIFIED

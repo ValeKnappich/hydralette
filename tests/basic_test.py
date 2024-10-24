@@ -74,12 +74,18 @@ def test_references():
             checkpoint_dir=Field(reference_root=lambda cfg: cfg.dir / "checkpoints"),  # relative to current config
             metrics_dir=Field(reference=lambda cfg: cfg.checkpoint_dir.parent / "metrics"),  # relative to root config
         ),
+        # make sure reference fields can still be overridden
+        sub_dir=Field(reference=lambda cfg: cfg.dir / "sub", type=Path),
+        # but: types wont be automatically inferred from reference return type (value will be str when overriden without type or convert argument)
+        sub_sub_dir=Field(reference=lambda cfg: cfg.dir / "sub" / "sub")
     )
-    cfg.resolve_references()
+    cfg.apply(["--sub_dir", "outputs/sub_2", "--sub_sub_dir", "outputs/sub_2/sub_2"])
 
     assert cfg.to_dict() == {
         "dir": Path("outputs"),
         "train": {"checkpoint_dir": Path("outputs/checkpoints"), "metrics_dir": Path("outputs/metrics")},
+        "sub_dir": Path("outputs/sub_2"),
+        "sub_sub_dir": "outputs/sub_2/sub_2",
     }
 
 
